@@ -253,9 +253,9 @@ Nếu cài đặt này được bật và Doodle đang hiển thị tại khu v�
   <string name="revanced_hide_ai_generated_video_summary_section_title">Ẩn \'Bản tóm tắt video do AI tạo\'</string>
   <string name="revanced_hide_ai_generated_video_summary_section_summary_on">Phần tóm tắt video do AI tạo đã bị ẩn</string>
   <string name="revanced_hide_ai_generated_video_summary_section_summary_off">Phần tóm tắt video do AI tạo được hiển thị</string>
-  <string name="revanced_hide_ask_section_title">Ẩn Hỏi</string>
-  <string name="revanced_hide_ask_section_summary_on">Phần Hỏi đã bị ẩn</string>
-  <string name="revanced_hide_ask_section_summary_off">Phần Hỏi được hiển thị</string>
+  <string name="revanced_hide_ask_section_title">Ẩn Đặt câu hỏi</string>
+  <string name="revanced_hide_ask_section_summary_on">Phần đặt câu hỏi đã bị ẩn</string>
+  <string name="revanced_hide_ask_section_summary_off">Phần đặt câu hỏi được hiển thị</string>
   <string name="revanced_hide_attributes_section_title">Ẩn Thuộc tính</string>
   <string name="revanced_hide_attributes_section_summary_on">Phần Địa điểm nổi bật, Trò chơi, Âm nhạc và Người được đề cập đã bị ẩn</string>
   <string name="revanced_hide_attributes_section_summary_off">Phần Địa điểm nổi bật, Trò chơi, Âm nhạc và Người được đề cập được hiển thị</string>
@@ -574,9 +574,9 @@ Tính năng này chỉ khả dụng trên các thiết bị cũ"</string>
   <string name="revanced_hide_thanks_button_summary_off">Nút cảm ơn được hiển thị</string>
   <!-- 'Ask' should be translated with the same localized wording that YouTube displays.
                   This button only shows up if the user ip is from specific region such as the USA or EU. -->
-  <string name="revanced_hide_ask_button_title">Ẩn Hỏi</string>
-  <string name="revanced_hide_ask_button_summary_on">Nút hỏi đã bị ẩn</string>
-  <string name="revanced_hide_ask_button_summary_off">Nút hỏi được hiển thị</string>
+  <string name="revanced_hide_ask_button_title">Ẩn Đặt câu hỏi</string>
+  <string name="revanced_hide_ask_button_summary_on">Nút đặt câu hỏi đã bị ẩn</string>
+  <string name="revanced_hide_ask_button_summary_off">Nút đặt câu hỏi được hiển thị</string>
   <!-- 'Clip' should be translated with the same localized wording that YouTube displays. -->
   <string name="revanced_hide_clip_button_title">Ẩn Tạo đoạn video</string>
   <string name="revanced_hide_clip_button_summary_on">Nút tạo đoạn video đã bị ẩn</string>
@@ -1444,7 +1444,7 @@ Bật tính năng này có thể mở khóa chất lượng video cao hơn"</str
   <string name="revanced_remember_video_quality_last_selected_title">Nhớ các thay đổi chất lượng video</string>
   <string name="revanced_remember_video_quality_last_selected_summary_on">Thay đổi chất lượng áp dụng cho tất cả video</string>
   <string name="revanced_remember_video_quality_last_selected_summary_off">Thay đổi chất lượng chỉ áp dụng cho video hiện tại</string>
-  <string name="revanced_remember_video_quality_last_selected_toast_title">Hiển thị thông báo nổi khi chất lượng video thay đổi</string>
+  <string name="revanced_remember_video_quality_last_selected_toast_title">Hiện thông báo nổi khi chất lượng video thay đổi</string>
   <string name="revanced_remember_video_quality_last_selected_toast_summary_on">Thông báo nổi sẽ hiển thị khi chất lượng video mặc định được thay đổi</string>
   <string name="revanced_remember_video_quality_last_selected_toast_summary_off">Thông báo nổi sẽ không hiển thị khi chất lượng video mặc định được thay đổi</string>
   <string name="revanced_video_quality_default_wifi_title">Chất lượng mặc định trên mạng Wi-Fi</string>
@@ -1480,7 +1480,7 @@ Bật tính năng này có thể mở khóa chất lượng video cao hơn"</str
   <string name="revanced_remember_playback_speed_last_selected_title">Nhớ các thay đổi tốc độ phát</string>
   <string name="revanced_remember_playback_speed_last_selected_summary_on">Thay đổi tốc độ phát áp dụng cho tất cả video</string>
   <string name="revanced_remember_playback_speed_last_selected_summary_off">Thay đổi tốc độ phát chỉ áp dụng cho video hiện tại</string>
-  <string name="revanced_remember_playback_speed_last_selected_toast_title">Hiển thị thông báo nổi khi tốc độ phát thay đổi</string>
+  <string name="revanced_remember_playback_speed_last_selected_toast_title">Hiện thông báo nổi khi tốc độ phát thay đổi</string>
   <string name="revanced_remember_playback_speed_last_selected_toast_summary_on">Thông báo nổi sẽ hiển thị khi tốc độ phát mặc định được thay đổi</string>
   <string name="revanced_remember_playback_speed_last_selected_toast_summary_off">Thông báo nổi không hiển thị khi tốc độ phát mặc định được thay đổi</string>
   <string name="revanced_playback_speed_default_title">Tốc độ phát mặc định</string>
