@@ -73,7 +73,7 @@ class Session {
     }
 
     void save() {
-        Logger.printInfo(() -> "Saving session: " + this);
+        Logger.printInfo(() -> "Saving session for username: " + username);
 
         SharedPreferences.Editor editor = Utils.getContext().getSharedPreferences("revanced", MODE_PRIVATE).edit();
 

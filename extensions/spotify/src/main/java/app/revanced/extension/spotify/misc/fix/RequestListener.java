@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.util.Objects;
 
 import static app.revanced.extension.spotify.misc.fix.Session.FAILED_TO_RENEW_SESSION;
+import static app.revanced.extension.spotify.misc.fix.WebApp.launchSession;
 import static fi.iki.elonen.NanoHTTPD.Response.Status.INTERNAL_ERROR;
 
 class RequestListener extends NanoHTTPD {
@@ -81,21 +82,31 @@ class RequestListener extends NanoHTTPD {
 
         if (session == null) {
             Logger.printException(() -> "Session is null. An initial login may still be in progress, returning try again later error");
+
             builder.setError(LoginError.TRY_AGAIN_LATER);
         } else if (session.accessTokenExpired()) {
             Logger.printInfo(() -> "Access token expired, renewing session");
+
             WebApp.renewSessionBlocking(session.cookies);
+
             return toLoginResponse(WebApp.currentSession);
         } else if (session.username == null) {
             Logger.printException(() -> "Session username is null, likely caused by invalid cookies, returning invalid credentials error");
+
             session.delete();
+
             builder.setError(LoginError.INVALID_CREDENTIALS);
         } else if (session == FAILED_TO_RENEW_SESSION) {
             Logger.printException(() -> "Failed to renew session, likely caused by a timeout, returning try again later error");
+
             builder.setError(LoginError.TRY_AGAIN_LATER);
         } else {
             session.save();
+
+            launchSession(session.cookies);
+
             Logger.printInfo(() -> "Returning session for username: " + session.username);
+
             builder.setOk(LoginOk.newBuilder()
                     .setUsername(session.username)
                     .setAccessToken(session.accessToken)
@@ -115,17 +126,21 @@ class RequestListener extends NanoHTTPD {
             @Override
             public int read() throws IOException {
                 if (remaining <= 0) return -1;
+              
                 int result = super.read();
                 if (result != -1) remaining--;
+                
                 return result;
             }
 
             @Override
             public int read(byte[] b, int off, int len) throws IOException {
                 if (remaining <= 0) return -1;
+              
                 len = (int) Math.min(len, remaining);
                 int result = super.read(b, off, len);
                 if (result != -1) remaining -= result;
+                
                 return result;
             }
         };
@@ -135,6 +150,7 @@ class RequestListener extends NanoHTTPD {
     private static InputStream getRequestBodyInputStream(@NonNull IHTTPSession request) {
         long requestContentLength =
                 Long.parseLong(Objects.requireNonNull(request.getHeaders().get("content-length")));
+      
         return limitedInputStream(request.getInputStream(), requestContentLength);
     }
 

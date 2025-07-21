@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Build;
 import android.view.Window;
 import android.view.WindowInsets;
@@ -14,6 +15,7 @@ import app.revanced.extension.shared.Logger;
 import app.revanced.extension.shared.Utils;
 import app.revanced.extension.spotify.UserAgent;
 
+import java.io.ByteArrayInputStream;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -22,9 +24,8 @@ import static app.revanced.extension.spotify.misc.fix.Session.FAILED_TO_RENEW_SE
 class WebApp {
     private static final String OPEN_SPOTIFY_COM = "open.spotify.com";
     private static final String OPEN_SPOTIFY_COM_URL = "https://" + OPEN_SPOTIFY_COM;
-    private static final String OPEN_SPOTIFY_COM_PREFERENCES_URL = OPEN_SPOTIFY_COM_URL + "/preferences";
-    private static final String ACCOUNTS_SPOTIFY_COM_LOGIN_URL = "https://accounts.spotify.com/login?allow_password=1"
-            + "&continue=https%3A%2F%2Fopen.spotify.com%2Fpreferences";
+    private static final String ACCOUNTS_SPOTIFY_OPEN_SPOTIFY_COM_URL = "https://accounts.spotify.com/login?allow_password=1"
+            + "&continue=https%3A%2F%2Fopen.spotify.com";
 
     private static final int GET_SESSION_TIMEOUT_SECONDS = 10;
     private static final String JAVASCRIPT_INTERFACE_NAME = "androidInterface";
@@ -40,7 +41,7 @@ class WebApp {
      * Current webview in use. Any use of the object must be done on the main thread.
      */
     @SuppressLint("StaticFieldLeak")
-    private static volatile WebView currentWebView;
+    private static volatile WebView webView;
 
     interface NativeLoginHandler {
         void login();
@@ -62,12 +63,12 @@ class WebApp {
 
                 // Can't use Utils.getContext() here, because autofill won't work.
                 // See https://stackoverflow.com/a/79182053/11213244.
-                loadWebView(context, ACCOUNTS_SPOTIFY_COM_LOGIN_URL, new WebViewCallback() {
+                setWebView(context, ACCOUNTS_SPOTIFY_OPEN_SPOTIFY_COM_URL, new WebViewCallback() {
                     @Override
-                    void onLoaded() {
-                        super.onLoaded();
+                    void onInitialized() {
+                        super.onInitialized();
 
-                        dialog.setContentView(currentWebView);
+                        dialog.setContentView(webView);
                         dialog.show();
                     }
 
@@ -109,17 +110,17 @@ class WebApp {
 
         CountDownLatch getSessionLatch = new CountDownLatch(1);
 
-        loadWebView(Utils.getContext(), OPEN_SPOTIFY_COM_PREFERENCES_URL, new WebViewCallback() {
+        setWebView(Utils.getContext(), OPEN_SPOTIFY_COM_URL, new WebViewCallback() {
             @Override
-            public void onLoaded() {
+            public void onInitialized() {
                 setCookies(cookies);
 
-                super.onLoaded();
+                super.onInitialized();
             }
 
             public void onReceivedSession(Session session) {
                 super.onReceivedSession(session);
-            
+
                 getSessionLatch.countDown();
             }
         });
@@ -139,11 +140,30 @@ class WebApp {
         }
     }
 
+    static void launchSession(String cookies) {
+        if (webView == null) {
+            Logger.printInfo(() -> "Launching session");
+
+            setWebView(Utils.getContext(), OPEN_SPOTIFY_COM_URL, new WebViewCallback() {
+                @Override
+                void onInitialized() {
+                    setCookies(cookies);
+
+                    super.onInitialized();
+                }
+
+                @Override
+                void onReceivedSession(Session session) {
+                }
+            });
+        }
+    }
+
     /**
      * All methods are called on the main thread.
      */
     abstract static class WebViewCallback {
-        void onLoaded() {
+        void onInitialized() {
             currentSession = null; // Reset current session.
         }
 
@@ -157,91 +177,110 @@ class WebApp {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private static void loadWebView(
+    private static void setWebView(
             Context context,
             String initialUrl,
             WebViewCallback webViewCallback
     ) {
         Utils.runOnMainThreadNowOrLater(() -> {
-            if (currentWebView == null) {
-                currentWebView = new WebView(context);
-                WebSettings settings = currentWebView.getSettings();
-                settings.setDomStorageEnabled(true);
-                settings.setJavaScriptEnabled(true);
-                settings.setUserAgentString(USER_AGENT);
+            destructWebView();
 
-                // WebViewClient is always called off the main thread,
-                // but callback interface methods are called on the main thread.
-                currentWebView.setWebViewClient(new WebViewClient() {
-                    @Override
-                    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                        if (OPEN_SPOTIFY_COM.equals(request.getUrl().getHost())) {
-                            Utils.runOnMainThread(() -> webViewCallback.onLoggedIn(getCurrentCookies()));
-                        }
+            webView = new WebView(context);
 
-                        return super.shouldInterceptRequest(view, request);
+            WebSettings settings = webView.getSettings();
+            settings.setDomStorageEnabled(true);
+            settings.setJavaScriptEnabled(true);
+            settings.setUserAgentString(USER_AGENT);
+            settings.setAllowContentAccess(true);
+            settings.setMediaPlaybackRequiresUserGesture(false); // TODO: May not be needed.
+
+            // Make Spotify playable in the webview.
+            webView.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public void onPermissionRequest(PermissionRequest request) {
+                    for (String resource : request.getResources())
+                        // Spotify uses Widevine DRM for protected media playback.
+                        if (resource.equals(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID))
+                            request.grant(request.getResources());
+                }
+            });
+
+            webView.setWebViewClient(new WebViewClient() {
+                private final WebResourceResponse EMPTY_VIDEO_RESPONSE = new WebResourceResponse(
+                        "video/mp4", "UTF-8", new ByteArrayInputStream(new byte[0])
+                );
+
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                    Uri uri = request.getUrl();
+
+                    if (uri.getHost().equals(OPEN_SPOTIFY_COM_URL))
+                        Utils.runOnMainThread(() -> webViewCallback.onLoggedIn(getCurrentCookies()));
+                    else if (uri.toString().contains("spotifycdn.com/audio/")) return EMPTY_VIDEO_RESPONSE;
+
+                    return super.shouldInterceptRequest(view, request);
+                }
+
+                @Override
+                public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                    Logger.printInfo(() -> "Page started loading: " + url);
+
+                    if (!url.startsWith(OPEN_SPOTIFY_COM_URL)) {
+                        return;
                     }
 
-                    @Override
-                    public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                        Logger.printInfo(() -> "Page started loading: " + url);
+                    Logger.printInfo(() -> "Evaluating script to get session on url: " + url);
+                    String getSessionScript = "Object.defineProperty(Object.prototype, \"_username\", {" +
+                            "   configurable: true," +
+                            "   set(username) {" +
+                            "       accessToken = this._builder?.accessToken;" +
+                            "       if (accessToken) {" +
+                            "           " + JAVASCRIPT_INTERFACE_NAME + ".getSession(username, accessToken);" +
+                            "           delete Object.prototype._username;" +
+                            "       }" +
+                            "       " +
+                            "       Object.defineProperty(this, \"_username\", {" +
+                            "           configurable: true," +
+                            "           enumerable: true," +
+                            "           writable: true," +
+                            "           value: username" +
+                            "       })" +
+                            "       " +
+                            "   }" +
+                            "});" +
+                            "if (new URLSearchParams(window.location.search).get('_authfailed') != null) {" +
+                            "   " + JAVASCRIPT_INTERFACE_NAME + ".getSession(null, null);" +
+                            "}";
 
-                        if (!url.startsWith(OPEN_SPOTIFY_COM_URL)) {
-                            return;
-                        }
+                    view.evaluateJavascript(getSessionScript, null);
+                }
+            });
 
-                        Logger.printInfo(() -> "Evaluating script to get session on url: " + url);
-                        String getSessionScript = "Object.defineProperty(Object.prototype, \"_username\", {" +
-                                "   configurable: true," +
-                                "   set(username) {" +
-                                "       accessToken = this._builder?.accessToken;" +
-                                "       if (accessToken) {" +
-                                "           " + JAVASCRIPT_INTERFACE_NAME + ".getSession(username, accessToken);" +
-                                "           delete Object.prototype._username;" +
-                                "       }" +
-                                "       " +
-                                "       Object.defineProperty(this, \"_username\", {" +
-                                "           configurable: true," +
-                                "           enumerable: true," +
-                                "           writable: true," +
-                                "           value: username" +
-                                "       })" +
-                                "       " +
-                                "   }" +
-                                "});" +
-                                "if (new URLSearchParams(window.location.search).get('_authfailed') != null) {" +
-                                "   " + JAVASCRIPT_INTERFACE_NAME + ".getSession(null, null);" +
-                                "}";
+            webView.addJavascriptInterface(new Object() {
+                @SuppressWarnings("unused")
+                @JavascriptInterface
+                public void getSession(String username, String accessToken) {
+                    Session session = new Session(username, accessToken, getCurrentCookies());
 
-                        view.evaluateJavascript(getSessionScript, null);
-                    }
-                });
-
-                currentWebView.addJavascriptInterface(new Object() {
-                    @SuppressWarnings("unused")
-                    @JavascriptInterface
-                    public void getSession(String username, String accessToken) {
-                        Session session = new Session(username, accessToken, getCurrentCookies());
-                        Utils.runOnMainThread(() -> webViewCallback.onReceivedSession(session));
-                    }
-                }, JAVASCRIPT_INTERFACE_NAME);
-            }
+                    Utils.runOnMainThread(() -> webViewCallback.onReceivedSession(session));
+                }
+            }, JAVASCRIPT_INTERFACE_NAME);
 
             CookieManager.getInstance().removeAllCookies((anyRemoved) -> {
-                Logger.printInfo(() -> "Loading URL: " + initialUrl);
-                currentWebView.loadUrl(initialUrl);
+                webViewCallback.onInitialized();
 
-                Logger.printInfo(() -> "WebView initialized with user agent: " + USER_AGENT);
-                webViewCallback.onLoaded();
+                Logger.printInfo(() -> "Loading URL: " + initialUrl);
+                webView.loadUrl(initialUrl);
             });
         });
     }
 
     private static void destructWebView() {
+        if (webView == null) return;
         Utils.runOnMainThreadNowOrLater(() -> {
-            currentWebView.stopLoading();
-            currentWebView.destroy();
-            currentWebView = null;
+            webView.stopLoading();
+            webView.destroy();
+            webView = null;
         });
     }
 
